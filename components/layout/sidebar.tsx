@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils/cn'
 const navItems = [
   {
     label: 'Dashboard',
-    href: '/',
+    href: '/inicio',
     icon: LayoutDashboard,
     description: 'Resumen general',
   },
@@ -79,7 +79,7 @@ export function Sidebar() {
   }
 
   const isActive = (href: string) => {
-    if (href === '/') return pathname === '/'
+    if (href === '/inicio') return pathname === '/inicio'
     return pathname.startsWith(href)
   }
 
