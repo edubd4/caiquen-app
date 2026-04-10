@@ -1,0 +1,11 @@
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+/**
+ * Merge de clases Tailwind con resolución de conflictos.
+ * Uso: cn('px-2 py-1', condition && 'bg-red-500', 'px-4')
+ *      → 'py-1 bg-red-500 px-4'
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}

@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* ====================================================
+   Design System — El Caiquen
+   Paleta: dark navy (#051426) + amber (#e8a020)
+   Tipografía: Fraunces (títulos) + Inter (datos)
+   ==================================================== */
+
+:root {
+  /* Colores base */
+  --caiquen-bg: #051426;
+  --caiquen-surface: #0a1628;
+  --caiquen-border: rgba(180, 120, 0, 0.2);
+
+  /* Colores semáforo de stock */
+  --stock-ok: #22c97a;
+  --stock-warning: #e8a020;
+  --stock-critical: #e85a5a;
+
+  /* Tipografía */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+}
+
+/* Reset y base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--caiquen-bg);
+  color: white;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(180, 120, 0, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 120, 0, 0.4);
+}
+
+/* Focus visible accesible */
+:focus-visible {
+  outline: 2px solid rgba(232, 160, 32, 0.6);
+  outline-offset: 2px;
+}
+
+/* Animaciones suaves */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Utilitarios de layout */
+.bg-surface {
+  background-color: var(--caiquen-surface);
+}
+
+.border-caiquen {
+  border-color: var(--caiquen-border);
+}
+
+/* Status badges */
+.badge-ok {
+  color: var(--stock-ok);
+  background-color: rgba(34, 201, 122, 0.1);
+  border-color: rgba(34, 201, 122, 0.2);
+}
+
+.badge-warning {
+  color: var(--stock-warning);
+  background-color: rgba(232, 160, 32, 0.1);
+  border-color: rgba(232, 160, 32, 0.2);
+}
+
+.badge-critical {
+  color: var(--stock-critical);
+  background-color: rgba(232, 90, 90, 0.1);
+  border-color: rgba(232, 90, 90, 0.2);
+}
+
+/* Tailwind v4 theme overrides */
+@theme inline {
+  --color-background: var(--caiquen-bg);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
