@@ -1,22 +1,82 @@
 import { Topbar } from '@/components/layout/topbar'
-import { ChefHat } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { StockGrid } from '@/components/empanadas/stock-grid'
+import { HistorialTable } from '@/components/empanadas/historial-table'
+import { TabsNav } from '@/components/ui/tabs-nav'
+import { Suspense } from 'react'
 
-export default function EmpanadasPage() {
+export const revalidate = 0
+
+interface EmpanadasPageProps {
+  searchParams: Promise<{ tab?: string }>
+}
+
+export default async function EmpanadasPage({ searchParams }: EmpanadasPageProps) {
+  const supabase = await createClient()
+  const { tab } = await searchParams
+  const activeTab = tab === 'historial' ? 'historial' : 'stock'
+
+  // Sabores activos
+  const { data: flavors } = await supabase
+    .from('empanada_flavors')
+    .select('id, name, code')
+    .eq('active', true)
+    .order('name')
+
+  // Stock actual desde la vista
+  const { data: stockData } = await supabase
+    .from('v_empanada_stock_summary')
+    .select('location, quantity, sabor_code, sabor_nombre, updated_at')
+
+  // Historial solo si está en esa tab
+  let historial: Parameters<typeof HistorialTable>[0]['movimientos'] = []
+  if (activeTab === 'historial') {
+    const { data } = await supabase
+      .from('empanada_movements')
+      .select(`
+        id, type, location, quantity, notes, created_at,
+        empanada_flavors ( name, code ),
+        profiles ( full_name, email )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    historial = (data ?? []) as unknown as typeof historial
+  }
+
+  const flavorsList = (flavors ?? []) as { id: string; name: string; code: string }[]
+
+  // Normalizar stock al tipo del grid
+  const stockCells = (stockData ?? []).map(s => ({
+    location: s.location as 'BAR' | 'FABRICA' | 'SAN_MIGUEL',
+    quantity: Number(s.quantity ?? 0),
+    sabor_code: s.sabor_code ?? '',
+  }))
+
+  // Conteo de movimientos para badge en tab
+  const { count: movimientosCount } = await supabase
+    .from('empanada_movements')
+    .select('*', { count: 'exact', head: true })
+
+  const tabs = [
+    { label: 'Stock actual', value: 'stock' },
+    { label: 'Historial', value: 'historial', count: movimientosCount ?? 0 },
+  ]
+
   return (
     <div>
-      <Topbar
-        title="Empanadas"
-        subtitle="Stock y producción por ubicación"
-      />
-      <div className="p-6">
-        <div className="rounded-xl border border-amber-900/20 bg-white/2 p-12 flex flex-col items-center justify-center text-center">
-          <ChefHat className="w-12 h-12 text-amber-500/40 mb-4" />
-          <h2 className="text-lg font-semibold text-white mb-2">Módulo de Empanadas</h2>
-          <p className="text-sm text-gray-500 max-w-sm">
-            Este módulo se construye en la <strong className="text-amber-400">Fase 2</strong>.
-            Incluirá stock por sabor y ubicación (Bar / Fábrica / San Miguel) y registro de producción.
-          </p>
-        </div>
+      <Topbar title="Empanadas" subtitle="Stock por sabor y ubicación" />
+
+      <div className="p-6 space-y-5">
+        <Suspense>
+          <TabsNav tabs={tabs} />
+        </Suspense>
+
+        {activeTab === 'stock' ? (
+          <StockGrid flavors={flavorsList} stock={stockCells} />
+        ) : (
+          <HistorialTable movimientos={historial} />
+        )}
       </div>
     </div>
   )
