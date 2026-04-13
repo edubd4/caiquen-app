@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo, useTransition } from 'react'
-import { Plus, Search, Edit2, Trash2, Package, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Package, AlertTriangle, CheckCircle, Loader2, ChevronDown, ChevronRight, MapPin } from 'lucide-react'
 import { ItemForm } from './item-form'
 import { deleteItem } from '@/app/actions/stock'
+import { updateReorderPoint } from '@/app/actions/stock-current'
 
 type Category = { id: string; name: string }
 type Unit = { id: string; name: string; abbreviation: string }
@@ -25,11 +26,14 @@ export type StockItem = {
   stock_current: { quantity: number; location_id: string; reorder_point: number }[]
 }
 
+type Location = { id: string; name: string }
+
 interface ItemsTableProps {
   items: StockItem[]
   categories: Category[]
   units: Unit[]
   suppliers: Supplier[]
+  locations?: Location[]
 }
 
 function StockBadge({ quantity, reorder }: { quantity: number; reorder: number }) {
@@ -57,13 +61,88 @@ function StockBadge({ quantity, reorder }: { quantity: number; reorder: number }
   )
 }
 
-export function ItemsTable({ items, categories, units, suppliers }: ItemsTableProps) {
+// ─── Subcomponente: stock por ubicación (fila expandida) ─────────────────
+function StockPorUbicacion({ item, locations = [] }: { item: StockItem; locations?: Location[] }) {
+  const [saving, setSaving] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  const handleReorder = (locationId: string, formData: FormData) => {
+    setSaving(locationId)
+    startTransition(async () => {
+      await updateReorderPoint(formData)
+      setSaving(null)
+    })
+  }
+
+  if (!item.stock_current || item.stock_current.length === 0) {
+    return (
+      <div className="px-4 py-3 text-xs text-gray-600 flex items-center gap-2">
+        <MapPin className="w-3.5 h-3.5" />
+        Sin registros de stock por ubicación. Registrá una entrada para inicializar.
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Stock por ubicación</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {item.stock_current.map((sc) => (
+          <form
+            key={sc.location_id}
+            action={(fd) => handleReorder(sc.location_id, fd)}
+            className="flex items-center gap-2 p-2.5 rounded-lg bg-white/3 border border-white/8"
+          >
+            <input type="hidden" name="item_id" value={item.id} />
+            <input type="hidden" name="location_id" value={sc.location_id} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-400 truncate">
+                {locations.find(l => l.id === sc.location_id)?.name ?? sc.location_id}
+              </p>
+              <p className="text-sm font-semibold text-white tabular-nums">
+                {sc.quantity % 1 === 0 ? sc.quantity : sc.quantity.toFixed(2)}
+                <span className="text-xs font-normal text-gray-500 ml-1">{item.units?.abbreviation}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className="text-xs text-gray-600">mín</span>
+              <input
+                name="reorder_point"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={sc.reorder_point}
+                className="w-16 px-1.5 py-1 rounded text-xs bg-white/5 border border-white/10 text-white text-center focus:outline-none focus:border-amber-500/50"
+              />
+              <button
+                type="submit"
+                disabled={saving === sc.location_id}
+                className="p-1 rounded text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                title="Guardar mínimo"
+              >
+                {saving === sc.location_id
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <CheckCircle className="w-3 h-3" />
+                }
+              </button>
+            </div>
+          </form>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────
+
+export function ItemsTable({ items, categories, units, suppliers, locations = [] }: ItemsTableProps) {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'ok' | 'bajo' | 'sin_stock'>('')
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState<StockItem | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   // Para el semáforo: usamos el máximo reorder_point de todas las ubicaciones del ítem
@@ -217,62 +296,82 @@ export function ItemsTable({ items, categories, units, suppliers }: ItemsTablePr
                   <th className="px-4 py-3 w-16" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-amber-900/10">
+              <tbody>
                 {filtered.map((item) => {
                   const { totalQuantity, maxReorder } = getItemStockInfo(item)
+                  const isExpanded = expandedId === item.id
                   return (
-                    <tr key={item.id} className="hover:bg-white/2 transition-colors group">
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs text-amber-400/70">{item.item_code || '—'}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-white">{item.name}</p>
-                        {item.notes && (
-                          <p className="text-xs text-gray-600 truncate max-w-48">{item.notes}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-300 text-sm">{item.categories?.name ?? '—'}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-400 text-xs bg-white/5 px-1.5 py-0.5 rounded">
-                          {item.units?.abbreviation ?? '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="font-medium text-white tabular-nums">
-                          {totalQuantity % 1 === 0 ? totalQuantity : totalQuantity.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <StockBadge quantity={totalQuantity} reorder={maxReorder} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-500 text-xs">{item.suppliers?.name ?? '—'}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            disabled={deletingId === item.id}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                            title="Eliminar"
-                          >
-                            {deletingId === item.id
-                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              : <Trash2 className="w-3.5 h-3.5" />
+                    <>
+                      <tr
+                        key={item.id}
+                        className={`border-b border-amber-900/10 hover:bg-white/2 transition-colors group cursor-pointer ${isExpanded ? 'bg-white/3' : ''}`}
+                        onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            {isExpanded
+                              ? <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+                              : <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
                             }
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                            <span className="font-mono text-xs text-amber-400/70">{item.item_code || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-white">{item.name}</p>
+                          {item.notes && (
+                            <p className="text-xs text-gray-600 truncate max-w-48">{item.notes}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-gray-300 text-sm">{item.categories?.name ?? '—'}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-gray-400 text-xs bg-white/5 px-1.5 py-0.5 rounded">
+                            {item.units?.abbreviation ?? '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-medium text-white tabular-nums">
+                            {totalQuantity % 1 === 0 ? totalQuantity : totalQuantity.toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <StockBadge quantity={totalQuantity} reorder={maxReorder} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-gray-500 text-xs">{item.suppliers?.name ?? '—'}</span>
+                        </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                            <button
+                              onClick={() => handleEdit(item)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+                              title="Editar"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              disabled={deletingId === item.id}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                              title="Eliminar"
+                            >
+                              {deletingId === item.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <Trash2 className="w-3.5 h-3.5" />
+                              }
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${item.id}-detail`} className="border-b border-amber-900/10 bg-white/1">
+                          <td colSpan={8} className="p-0">
+                            <StockPorUbicacion item={item} locations={locations} />
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )
                 })}
               </tbody>
