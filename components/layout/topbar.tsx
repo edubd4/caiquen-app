@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { Bell } from 'lucide-react'
+import { NotificationBell, type StockAlert } from './notification-bell'
 
 interface TopbarProps {
   title: string
@@ -20,6 +20,31 @@ export async function Topbar({ title, subtitle }: TopbarProps) {
     profile = data as { full_name: string | null; role: string } | null
   }
 
+  // Alertas de stock: ítems por debajo del mínimo
+  const { data: alertRows } = await supabase
+    .from('stock_current')
+    .select('quantity, reorder_point, items ( name ), locations ( name )')
+    .gt('reorder_point', 0)
+    .filter('quantity', 'lt', 'reorder_point')
+
+  // El filter columna vs columna no está soportado en PostgREST directamente,
+  // lo resolvemos filtrando en JS (el dataset es pequeño)
+  const { data: allStock } = await supabase
+    .from('stock_current')
+    .select('quantity, reorder_point, items ( name ), locations ( name )')
+    .gt('reorder_point', 0)
+
+  void alertRows
+
+  const alerts: StockAlert[] = (allStock ?? [])
+    .filter((r) => r.quantity < r.reorder_point)
+    .map((r) => ({
+      item_name: (r.items as { name: string } | null)?.name ?? 'Ítem',
+      quantity: Number(r.quantity),
+      reorder_point: Number(r.reorder_point),
+      location_name: (r.locations as { name: string } | null)?.name ?? '—',
+    }))
+
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
     : user?.email?.[0].toUpperCase() ?? 'U'
@@ -32,12 +57,8 @@ export async function Topbar({ title, subtitle }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Notificaciones */}
-        <button className="relative p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-          <Bell className="w-5 h-5" />
-          {/* Badge de notificaciones */}
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full" />
-        </button>
+        {/* Bell con alertas reales */}
+        <NotificationBell alerts={alerts} />
 
         {/* Avatar */}
         <div className="flex items-center gap-2.5">
