@@ -92,12 +92,21 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Obtener datos básicos para los KPIs
-  // (cuando las tablas estén creadas, estos queries se activarán)
-  const stockBajoMinimo = 0    // TODO: query stock_current donde quantity <= reorder_point
-  const produccionHoy = 0     // TODO: query production_logs de hoy
-  const empleadosActivos = 0  // TODO: query shifts de hoy
-  const empanadasStock = 0    // TODO: query empanada_stock total
+  const today = new Date().toISOString().split('T')[0]
+
+  const [stockRes, produccionRes, turnosRes, empanadasRes] = await Promise.all([
+    supabase.from('stock_current').select('quantity, reorder_point'),
+    supabase.from('production_logs').select('id', { count: 'exact', head: true }).eq('production_date', today),
+    supabase.from('shifts').select('id', { count: 'exact', head: true }).eq('date', today),
+    supabase.from('empanada_stock').select('quantity'),
+  ])
+
+  const stockBajoMinimo = (stockRes.data ?? [])
+    .filter(r => r.reorder_point > 0 && r.quantity < r.reorder_point).length
+  const produccionHoy = produccionRes.count ?? 0
+  const empleadosActivos = turnosRes.count ?? 0
+  const empanadasStock = (empanadasRes.data ?? [])
+    .reduce((sum, r) => sum + Number(r.quantity ?? 0), 0)
 
   const now = new Date()
   const hora = now.getHours()

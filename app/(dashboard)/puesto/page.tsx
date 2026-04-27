@@ -1,22 +1,68 @@
 import { Topbar } from '@/components/layout/topbar'
-import { ShoppingBasket } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { TabsNav } from '@/components/ui/tabs-nav'
+import { ProductosTable } from '@/components/puesto/productos-table'
+import { StockPuestoTable } from '@/components/puesto/stock-puesto-table'
+import { Suspense } from 'react'
+import type { Producto } from '@/components/puesto/producto-form'
+import type { StockConProducto } from '@/components/puesto/stock-puesto-table'
 
-export default function PuestoPage() {
+export const revalidate = 0
+
+interface PuestoPageProps {
+  searchParams: Promise<{ tab?: string }>
+}
+
+export default async function PuestoPage({ searchParams }: PuestoPageProps) {
+  const supabase = await createClient()
+  const { tab } = await searchParams
+  const activeTab = ['productos', 'stock'].includes(tab ?? '') ? tab! : 'productos'
+
+  const [productosRes, stockRes] = await Promise.all([
+    supabase
+      .from('regional_products')
+      .select('id, name, category, notes')
+      .is('deleted_at', null)
+      .order('category')
+      .order('name'),
+
+    supabase
+      .from('regional_stock')
+      .select(`
+        id, product_id, presentation, quantity, reorder_point, price,
+        regional_products ( name, category )
+      `)
+      .order('product_id')
+      .order('presentation'),
+  ])
+
+  const productos = (productosRes.data ?? []) as Producto[]
+  const stock = (stockRes.data ?? []) as unknown as StockConProducto[]
+
+  const tabs = [
+    { label: 'Productos', value: 'productos', count: productos.length },
+    { label: 'Stock', value: 'stock', count: stock.length },
+  ]
+
   return (
     <div>
       <Topbar
         title="Puesto Regional"
-        subtitle="Productos regionales y stock"
+        subtitle="Productos artesanales, mieles, dulces y aceites"
       />
-      <div className="p-6">
-        <div className="rounded-xl border border-amber-900/20 bg-white/2 p-12 flex flex-col items-center justify-center text-center">
-          <ShoppingBasket className="w-12 h-12 text-amber-500/40 mb-4" />
-          <h2 className="text-lg font-semibold text-white mb-2">Módulo Puesto Regional</h2>
-          <p className="text-sm text-gray-500 max-w-sm">
-            Este módulo se construye en la <strong className="text-amber-400">Fase 5</strong>.
-            Incluirá gestión de dulces, mieles, frutos secos y aceites artesanales.
-          </p>
-        </div>
+
+      <div className="p-6 space-y-5">
+        <Suspense>
+          <TabsNav tabs={tabs} />
+        </Suspense>
+
+        {activeTab === 'productos' && (
+          <ProductosTable productos={productos} />
+        )}
+
+        {activeTab === 'stock' && (
+          <StockPuestoTable stock={stock} productos={productos} />
+        )}
       </div>
     </div>
   )
