@@ -63,7 +63,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
         created_at,
         items ( name, item_code, units ( abbreviation ) ),
         locations ( name ),
-        profiles ( full_name, email )
+        profiles!responsible_id ( full_name, email )
       `)
       .order('created_at', { ascending: false })
       .limit(200)

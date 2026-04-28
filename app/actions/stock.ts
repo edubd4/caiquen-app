@@ -17,7 +17,7 @@ const ItemSchema = z.object({
   notes: z.string().optional(),
   category_id: z.string().uuid('Seleccioná una categoría'),
   unit_id: z.string().uuid('Seleccioná una unidad'),
-  supplier_id: z.string().uuid().optional().nullable(),
+  supplier_id: z.string().min(1).optional().nullable(),
 })
 
 // ─── Items ────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export async function deleteItem(id: string): Promise<ActionResult> {
 // La tabla stock_movements en DB: item_id, location_id, type (enum), quantity, reason, responsible_id
 
 const MovimientoSchema = z.object({
-  item_id: z.string().uuid('Seleccioná un ítem'),
+  item_id: z.string().min(1, 'Seleccioná un ítem'),
   location_id: z.string().uuid('Seleccioná una ubicación'),
   type: z.enum(['ENTRADA', 'SALIDA', 'AJUSTE', 'MERMA', 'TRANSFERENCIA']),
   quantity: z.coerce.number().positive('La cantidad debe ser mayor a 0'),

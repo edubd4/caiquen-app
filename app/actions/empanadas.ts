@@ -79,6 +79,25 @@ export async function registrarMovimientoEmpanada(formData: FormData): Promise<A
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autenticado' }
 
+  // Validar stock disponible para movimientos que restan
+  const NEGATIVE_TYPES = ['VENTA_FINDE', 'RETIRO', 'CONSUMICION']
+  if (NEGATIVE_TYPES.includes(parsed.data.type)) {
+    const { data: stockRow } = await supabase
+      .from('empanada_stock')
+      .select('quantity')
+      .eq('flavor_id', parsed.data.flavor_id)
+      .eq('location', parsed.data.location)
+      .single()
+
+    const disponible = stockRow?.quantity ?? 0
+    if (parsed.data.quantity > disponible) {
+      return {
+        success: false,
+        error: `Stock insuficiente. Disponible: ${disponible} bdjas, intentás restar ${parsed.data.quantity}.`,
+      }
+    }
+  }
+
   const { error } = await supabase.from('empanada_movements').insert({
     flavor_id: parsed.data.flavor_id,
     location: parsed.data.location,

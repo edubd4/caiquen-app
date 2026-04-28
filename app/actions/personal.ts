@@ -78,7 +78,7 @@ export async function deleteEmpleado(id: string): Promise<ActionResult> {
 // ─── Turnos ───────────────────────────────────────────────────────────────
 
 const TurnoSchema = z.object({
-  employee_id: z.string().uuid('Seleccioná un empleado'),
+  employee_id: z.string().min(1, 'Seleccioná un empleado'),
   date: z.string().min(1, 'Seleccioná una fecha'),
   time_in: z.string().optional().nullable(),
   time_out: z.string().optional().nullable(),
@@ -137,7 +137,7 @@ export async function abrirPeriodo(weekStart: string, weekEnd: string): Promise<
   const { data: existing } = await supabase
     .from('payroll_periods')
     .select('id')
-    .eq('status', 'abierto')
+    .eq('status', 'ABIERTO')
     .lte('week_start', weekEnd)
     .gte('week_end', weekStart)
 
@@ -148,7 +148,7 @@ export async function abrirPeriodo(weekStart: string, weekEnd: string): Promise<
   const { error } = await supabase.from('payroll_periods').insert({
     week_start: weekStart,
     week_end: weekEnd,
-    status: 'abierto',
+    status: 'ABIERTO',
   })
 
   if (error) return { success: false, error: error.message }
@@ -161,7 +161,7 @@ export async function cerrarPeriodo(id: string): Promise<ActionResult> {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { error } = await supabase.from('payroll_periods').update({
-    status: 'cerrado',
+    status: 'CERRADO',
     closed_at: new Date().toISOString(),
     closed_by: user?.id ?? null,
   }).eq('id', id)
@@ -174,7 +174,7 @@ export async function cerrarPeriodo(id: string): Promise<ActionResult> {
 // ─── Adelantos y retiros ──────────────────────────────────────────────────
 
 const AdelantoSchema = z.object({
-  employee_id: z.string().uuid(),
+  employee_id: z.string().min(1, 'Seleccioná un empleado'),
   period_id: z.string().uuid().optional().nullable(),
   amount: z.coerce.number().positive('El monto debe ser mayor a 0'),
   date: z.string().min(1),

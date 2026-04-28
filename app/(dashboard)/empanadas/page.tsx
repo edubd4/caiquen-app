@@ -36,7 +36,7 @@ export default async function EmpanadasPage({ searchParams }: EmpanadasPageProps
       .select(`
         id, type, location, quantity, notes, created_at,
         empanada_flavors ( name, code ),
-        profiles ( full_name, email )
+        profiles!responsible_id ( full_name, email )
       `)
       .order('created_at', { ascending: false })
       .limit(200)
