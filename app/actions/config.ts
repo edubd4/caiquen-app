@@ -16,6 +16,9 @@ const ConfigSchema = z.object({
 export async function updateAppConfig(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autenticado' }
+
   const parsed = ConfigSchema.safeParse({
     key: formData.get('key'),
     value: formData.get('value'),
@@ -24,7 +27,11 @@ export async function updateAppConfig(formData: FormData): Promise<ActionResult>
 
   const { error } = await supabase
     .from('app_config')
-    .update({ value: parsed.data.value, updated_at: new Date().toISOString() })
+    .update({
+      value: parsed.data.value,
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    })
     .eq('key', parsed.data.key)
 
   if (error) return { success: false, error: error.message }
