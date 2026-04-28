@@ -299,7 +299,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
-          item_code?: string
+          // item_code es GENERATED ALWAYS AS (id) STORED — no se puede insertar
           name: string
           notes?: string | null
           price?: number | null
@@ -312,7 +312,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
-          item_code?: string
+          // item_code es GENERATED ALWAYS AS — no se puede actualizar
           name?: string
           notes?: string | null
           price?: number | null
