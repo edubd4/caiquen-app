@@ -30,6 +30,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
         category_id,
         unit_id,
         supplier_id,
+        price,
         categories ( name ),
         units ( name, abbreviation ),
         suppliers ( name ),

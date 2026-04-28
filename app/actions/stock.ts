@@ -18,6 +18,7 @@ const ItemSchema = z.object({
   category_id: z.string().uuid('Seleccioná una categoría'),
   unit_id: z.string().uuid('Seleccioná una unidad'),
   supplier_id: z.string().min(1).optional().nullable(),
+  price: z.coerce.number().min(0).optional().nullable(),
 })
 
 // ─── Items ────────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ export async function createItem(formData: FormData): Promise<ActionResult> {
     category_id: formData.get('category_id'),
     unit_id: formData.get('unit_id'),
     supplier_id: formData.get('supplier_id') || null,
+    price: formData.get('price') || null,
   })
 
   if (!parsed.success) {
@@ -43,7 +45,8 @@ export async function createItem(formData: FormData): Promise<ActionResult> {
     category_id: parsed.data.category_id,
     unit_id: parsed.data.unit_id,
     supplier_id: parsed.data.supplier_id ?? null,
-    // item_code es auto-generado por trigger en la DB (ELC-0001)
+    price: parsed.data.price ?? null,
+    // item_code se auto-completa via trigger BEFORE INSERT (= id = ELC-0001)
   })
 
   if (error) {
@@ -64,6 +67,7 @@ export async function updateItem(id: string, formData: FormData): Promise<Action
     category_id: formData.get('category_id'),
     unit_id: formData.get('unit_id'),
     supplier_id: formData.get('supplier_id') || null,
+    price: formData.get('price') || null,
   })
 
   if (!parsed.success) {
@@ -78,6 +82,7 @@ export async function updateItem(id: string, formData: FormData): Promise<Action
       category_id: parsed.data.category_id,
       unit_id: parsed.data.unit_id,
       supplier_id: parsed.data.supplier_id ?? null,
+      price: parsed.data.price ?? null,
     })
     .eq('id', id)
     .is('deleted_at', null)

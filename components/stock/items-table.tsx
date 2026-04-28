@@ -19,6 +19,7 @@ export type StockItem = {
   category_id: string
   unit_id: string
   supplier_id: string | null
+  price: number | null
   categories: { name: string } | null
   units: { name: string; abbreviation: string } | null
   suppliers: { name: string } | null
