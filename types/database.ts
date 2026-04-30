@@ -287,6 +287,54 @@ export type Database = {
           },
         ]
       }
+      fudo_product_mappings: {
+        Row: {
+          active: boolean
+          created_at: string
+          fudo_product_id: string
+          fudo_product_name: string | null
+          id: string
+          item_id: string
+          location_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          fudo_product_id: string
+          fudo_product_name?: string | null
+          id?: string
+          item_id: string
+          location_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          fudo_product_id?: string
+          fudo_product_name?: string | null
+          id?: string
+          item_id?: string
+          location_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fudo_product_mappings_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fudo_product_mappings_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           category_id: string
